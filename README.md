@@ -1,7 +1,7 @@
 # NUWT
 Northumbria University Wave Tracking code
 
-Code for measurement of wave from time-distance diagrams.
+This is the first release of the Northumbria University Wave Tracking (NUWT) code (in IDL). The code is primarily designed to analyse transverse waves along curvilinear features in solar imaging data, however, the underlying operations will work on any images. Tutorials and videos are included with the release.
 
 If you are using the code to produce research, please cite: 
 
