@@ -9,6 +9,10 @@ Morton et al., 2013, ApJ, 768, 17
 and/or 
 Morton, 2014, A&A, 566 90
 
+and
+
+https://zenodo.org/badge/21387/Richardjmorton/NUWT.svg
+
 Created on 14 March 2016 by R Morton
 
 
