@@ -11,7 +11,7 @@ Morton, 2014, A&A, 566 90
 
 and
 
-https://zenodo.org/badge/21387/Richardjmorton/NUWT.svg
+https://zenodo.org/badge/latestdoi/21387/Richardjmorton/NUWT
 
 Created on 14 March 2016 by R Morton
 
