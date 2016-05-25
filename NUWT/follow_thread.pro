@@ -16,6 +16,7 @@
 ;         R Morton NOV 2014 - super update! Added structure format to remove all the arrays.
 ;                             Also added COMMON variables so re-used values/structures are passed automatically
 ;         R Morton APR 2015 - moved some IF statements from moscill.pro to here.
+;         14 MAR 2016 - Release as version 1.0 of NUWT 
 
 pro follow_thread,t,min_tlen=min_tlen,area=area,out=out
 
@@ -38,82 +39,82 @@ im_err=located.errs(*,*,0)
 threads={pos:fltarr(nt), err_pos:fltarr(nt)}
 posi=fltarr(nt) & pos_err=fltarr(nt)
 tnum=0
+val=fix(area)/2 ; old - area-2
 
 FOR j=0,nt-(area+1) DO BEGIN ;Search over time
 	FOR i=area,nx-(area+1) DO BEGIN ; Search over x
 
-	    tlen=0.
-	    posi(0:nt-1)=0. & pos_err(0:nt-1)=0. ; reset pos
-	    posi(0:j)=-1. & pos_err(0:j)=-1
-	    h=j+1
+	    ;tlen=0.
+	    ;posi(0:nt-1)=0. & pos_err(0:nt-1)=0. ; reset pos
+	    ;posi(0:j)=-1. & pos_err(0:j)=-1
+	    ;h=j+1
 
 	    IF image[i,j] GT mini THEN BEGIN
+	    	tlen=0.
+	        posi(0:nt-1)=0. & pos_err(0:nt-1)=0. ; reset pos
+	    	posi(0:j)=-1. & pos_err(0:j)=-1
+	    	h=j+1
 
-		val=fix(area)/2 ; old - area-2
+			;create box thats (2*val+1) by area-1
+			a=image[(i-val):(i+val),h:h+(area/2)+1]
+			k=i
+	               ;set up exit from loop - if no pixel with value greater than minimum
+			;                        in box then end
+			WHILE max(a) GT mini DO BEGIN
 
-		;create box thats (2*val+1) by area-1
-		a=image[(i-val):(i+val),h:h+(area/2)+1]
-		k=i
-               ;set up exit from loop - if no pixel with value greater than minimum
-		;                        in box then end
-		WHILE max(a) GT mini DO BEGIN
+			   ;determines how many points have values greater than minimum
+			   b=where(a gt mini)
 
-		      ;determines how many points have values greater than minimum
-		      b=where(a gt mini)
+			   IF b(0) LT 0 THEN BEGIN
+				 a=mini ;if no points then set a to minimum value so loop is 
+	                                ;broken
+			   ENDIF ELSE BEGIN
+					;find coordinates of first non-minimum point in the box
+			      	xm=b(0) mod (val*2+1)
+			      	ym=b(0)/(val*2+1)
 
-		      IF b(0) LT 0 THEN BEGIN
-			 a=mini ;if no points then set a to minimum value so loop is 
-                                ;broken
-		      ENDIF ELSE BEGIN
+			      	;saves coordinates then erases them from dummy array 
+	              	;so values not used twice
+			      	k=k-val+xm
+	                posi(h+ym)=image[k,h+ym]
+			      	pos_err(h+ym)=im_err[k,h+ym]
 
-			;find coordinates of first non-minimum point in the box
-		      	xm=b(0) mod (val*2+1)
-		      	ym=b(0)/(val*2+1)
+			      	image[k,h+ym]=mini
+			      	im_err[k,h+ym]=mini
 
-		      	;saves coordinates then erases them from dummy array 
-                      	;so values not used twice
-		      	k=k-val+xm
-                       
-		      	posi(h+ym)=image[k,h+ym]
-		      	pos_err(h+ym)=im_err[k,h+ym]
+					IF ym EQ 0 THEN ym=1
+					h=h+ym
 
-		      	image[k,h+ym]=mini
-		      	im_err[k,h+ym]=mini
+					;stops loop from crashing as it reaches end and
+					;sets box (a) for next loop
+	                IF k LT val THEN a=mini ELSE $
+					IF h GT nt-(area/2)-2 THEN a=mini ELSE a=image[(k-val):(k+val),h:h+(area/2)+1]
+	                      
+					tlen=tlen+1
+	                       
+			   ENDELSE
 
-			IF ym EQ 0 THEN ym=1
-			h=h+ym
+			ENDWHILE
 
+			posi(h:nt-1)=-1
+			pos_err(h:nt-1)=-1
 
-			;stops loop from crashing as it reaches end and
-			;sets box (a) for next loop
-                      IF k LT val THEN a=mini ELSE $
-			IF h GT nt-(area/2)-2 THEN a=mini ELSE a=image[(k-val):(k+val),h:h+(area/2)+1]
-                      
-			tlen=tlen+1
-                       
-		     ENDELSE
+			IF tlen GT min_tlen THEN BEGIN
 
-		ENDWHILE
+			   ;skips enteries with less than 2 positive values
+	 		   IF (n_elements(where(posi[*] gt 0.))) GT 2. THEN BEGIN
 
-		posi(h:nt-1)=-1
-		pos_err(h:nt-1)=-1
+				   	;skips enteries where half the data points are set to zero, i.e. no
+		   		   	;value was obtained at fitting stage.
+		   		   	IF (n_elements(where(posi[*] EQ 0.))) LT 0.5*(n_elements(where(posi[*] GE 0.))) THEN BEGIN
+		                 		threads=[temporary(threads),{pos:posi, err_pos:pos_err}]
+		            ENDIF
+	           ENDIF
+	                
+			ENDIF
 
-		IF tlen GT min_tlen THEN BEGIN
-
-		   ;skips enteries with less than 2 positive values
- 		   IF (n_elements(where(posi[*] gt 0.))) GT 2. THEN BEGIN
-
-		   	;skips enteries where half the data points are set to zero, i.e. no
-   		   	;value was obtained at fitting stage.
-   		   	IF (n_elements(where(posi[*] EQ 0.))) LT 0.5*(n_elements(where(posi[*] GE 0.))) THEN BEGIN
-                 		threads=[temporary(threads),{pos:posi, err_pos:pos_err}]
-                   	ENDIF
-                   ENDIF
-                
-		ENDIF
-
-	  ENDIF
-     ENDFOR
+	    ENDIF
+    ENDFOR
 ENDFOR
 
 out=threads ;FOR testing

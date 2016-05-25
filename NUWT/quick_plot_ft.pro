@@ -29,7 +29,8 @@
 
 
 PRO quick_plot_ft,data,gauss=gauss,errors=errors,dx=dx,dt=dt,doplot=doplot,  $ 
-                      savedir=savedir,check=check,meas_size=meas_size,cut_chisq=cut_chisq 
+                      savedir=savedir,check=check,meas_size=meas_size,cut_chisq=cut_chisq,$
+                      simp_grad=simp_grad 
 
 on_error,2
 IF n_elements(data) EQ 0 THEN message,'You forgot to add some data!!'
@@ -74,12 +75,11 @@ FOR k=0, nslits-1 DO BEGIN
       
     ;Fitting of intensity maxima
     IF not keyword_set(gauss) THEN BEGIN
-      locate_things_min,data=data[*,*,k],grad=numg
+      IF n_elements(errors) GT 0 THEN inerr=errors[*,*,k] ELSE inerr=0
+      locate_things_min,data=data[*,*,k],grad=numg,errors=inerr,simp_grad=simp_grad
     ENDIF ELSE BEGIN
-
-         errorsi=errors[*,*,k]   
-         locate_things_fg,data=data[*,*,k],grad=numg,meas_size=meas_size, $
-               errors=errorsi,check=check,cut_chisq=cut_chisq 
+      locate_things_fg,data=data[*,*,k],grad=numg,meas_size=meas_size, $
+               errors=errors[*,*,k],check=check,cut_chisq=cut_chisq,simp_grad=simp_grad 
     ENDELSE
 
     ;Plot found data points

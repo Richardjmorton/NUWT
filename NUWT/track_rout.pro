@@ -21,7 +21,7 @@
 ;                 area  -  changes size of search box used in follow_thread, default is 5
 ;                          highly recommended to leave unchanged
 ;                 fname -  provide the directory to save to and the naming convention, i.e. directory/file
-;
+;                 simp_grad - Use of an analytic least-sqaures estimate for gradient - may be faster!  
 ;
 ;CALLS: locate_things.pro, locate_things_min.pro, follow_thread.pro, moscill.pro
 ;
@@ -34,16 +34,20 @@
 ;                  R Morton NOV 2014 - super update! Added structure format to remove all the arrays.
 ;                                      Also added COMMON variables so re-used values/structures are passed automatically
 ;                  R Morton MAR 2016 - Cleaned up!
+;                  14 MAR 2016 - Release as version 1.0 of NUWT 
+;                  R Morton MAY 2016 - minor changes to sub routines
+;
 ;
 ;TO DO: - Make plot ready for plotting damped profiles + tdp
 ;       - area keyword still buggy and certain values cause the routine to crash
 ;      
 ;
 
-pro track_rout, data=data,results=results,gauss=gauss,$ 
+pro track_rout, data,results=results,gauss=gauss,$ 
                 algn_err=algn_err,meas_size=meas_size,errors=errors,$
                 damped=damped,area=area,tdp=tdp,$
-                fname=fname,check=check,cut_chisq=cut_chisq
+                fname=fname,check=check,cut_chisq=cut_chisq,$
+                simp_grad=simp_grad
 
 COMMON located_dat,located, nx, nt
 COMMON threads_dat, threads
@@ -70,14 +74,13 @@ FOR i=0, nslit-1 DO BEGIN
     print,'#####################'
     IF not keyword_set(gauss) THEN BEGIN
       ;output is in common located_dat
-      locate_things_min,data=data[*,*,i],grad=numg
-      
+      IF n_elements(errors) GT 0 THEN inerr=errors[*,*,i] ELSE inerr=0
+      locate_things_min,data=data[*,*,i],grad=numg,errors=inerr,simp_grad=simp_grad
       print,'no Gaussian fit used'
     ENDIF ELSE BEGIN
-      IF n_elements(errors) gt 0. THEN errorsi=errors[*,*,i]
-   
+         
       locate_things,data=data[*,*,i],grad=numg,meas_size=meas_size, $
-                 errors=errorsi,check=check,cut_chisq=cut_chisq
+                 errors=errors[*,*,i],check=check,cut_chisq=cut_chisq,simp_grad=simp_grad
     
       IF n_elements(algn_err) GT 0 THEN located.errs=located.errs+algn_err   ; adds alignment error to error from Gaussian fits
 
