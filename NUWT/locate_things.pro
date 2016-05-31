@@ -155,8 +155,8 @@ FOR j=0, (nt-1) DO BEGIN
                     ;maxi.errs(h,0)=sigma[1]
                     ;maxi_errs(h,1)
                 ENDIF ELSE BEGIN
-                    located.peaks(round(i+coeff[1]),j,0:1)=[i,mx]
-                    located.errs(round(i+coeff[1]),j,0)=0.5
+                    located.peaks(i,j,0:1)=[i,mx]
+                    located.errs(i,j,0)=0.5
                     ;maxi.vals(h,0)=i
       	            ;maxi.vals(h,1)=mx
       	            ;maxi.errs(h,0)=0.5
