@@ -29,13 +29,12 @@
 
 
 PRO quick_plot_ft,data,gauss=gauss,errors=errors,dx=dx,dt=dt,doplot=doplot,  $ 
-                      savedir=savedir,check=check,meas_size=meas_size,cut_chisq=cut_chisq,$
-                      simp_grad=simp_grad 
+                      savedir=savedir,meas_size=meas_size, _EXTRA=_extra 
 
 on_error,2
 IF n_elements(data) EQ 0 THEN message,'You forgot to add some data!!'
 IF keyword_set(savedir) THEN file=savedir ELSE file='~/'
-IF keyword_set(gauss) THEN IF n_elements(errors) EQ 0 THEN message,'Uncertainties in intensities needed - errors keyword.'
+;IF keyword_set(gauss) THEN IF n_elements(errors) EQ 0 THEN message,'Uncertainties in intensities needed - errors keyword.'
 
 ;###############################################
 ;INITIAL HOUSE KEEPING
@@ -56,7 +55,7 @@ IF n_elements(meas_size) EQ 0 THEN meas_size=7
 
 
 
-IF NOT keyword_set(gauss) THEN print, 'Finding whole pixel values' ELSE print, 'Gaussian location enabled'
+;IF NOT keyword_set(gauss) THEN print, 'Finding whole pixel values' ELSE print, 'Gaussian location enabled'
 
 numg=1d
 READ,numg,PROMPT='Enter gradient: '
@@ -74,17 +73,21 @@ FOR k=0, nslits-1 DO BEGIN
     print,'&&&&&&&','Slit number:', k
       
     ;Fitting of intensity maxima
-    IF not keyword_set(gauss) THEN BEGIN
-      IF n_elements(errors) GT 0 THEN inerr=errors[*,*,k] ELSE inerr=0
-      locate_things_min,data=data[*,*,k],grad=numg,errors=inerr,simp_grad=simp_grad
-    ENDIF ELSE BEGIN
-      locate_things_fg,data=data[*,*,k],grad=numg,meas_size=meas_size, $
-               errors=errors[*,*,k],check=check,cut_chisq=cut_chisq,simp_grad=simp_grad 
-    ENDELSE
+  ;  IF not keyword_set(gauss) THEN BEGIN
+  ;    IF n_elements(errors) GT 0 THEN inerr=errors[*,*,k] ELSE inerr=0
+   ;   locate_things_min,data=data[*,*,k],grad=numg,errors=inerr,simp_grad=simp_grad
+   ; ENDIF ELSE BEGIN
+   ;   locate_things_fg,data=data[*,*,k],grad=numg,meas_size=meas_size, $
+   ;            errors=errors[*,*,k],check=check,cut_chisq=cut_chisq,simp_grad=simp_grad 
+   ; ENDELSE
+
+    IF n_elements(errors) GT 0 THEN inerr=errors[*,*,k] ELSE inerr=0
+
+    nuwt_locate_things,data[*,*,k],errors=inerr,res=res,grad=numg, _EXTRA=_extra
 
     ;Plot found data points
     IF NOT keyword_set(doplot) THEN BEGIN
-          window,0
+          ;window,0
           !p.multi=[0,2,1]
 
           tvim,data[*,*,k],xrange=[0,nx-1]*dx/1.e3,yrange=[0,nt-1]*dt,xtitle='Distance (Mm)',ytitle='Time (s)'

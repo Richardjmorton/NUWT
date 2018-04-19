@@ -544,7 +544,7 @@ pro tvim,a,scale=scale,range=range,xrange=xrange,yrange=yrange,$
         pcharsize=pcharsize,lcharsize=lcharsize,nbotclr=nbotclr,nodata=nodata,$
         rgb_nodata=rgb_nodata,barwidth=barwidth,position=position,rct=rct
 
-on_error,1        
+on_error,2        
 
 if n_params() eq 0 then begin
   xhelp,'tvim'

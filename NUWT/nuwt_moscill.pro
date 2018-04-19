@@ -35,31 +35,22 @@
 ;                     1 - Fitting using intensity and Doppler velocities 
 ;
 ;
-;OPTIONAL: damped - set if damped sin function is wanted, otherwise constant sin function is fitted
+;OPTIONAL: user_func - string name of user defined function. Function must be formatted in the same
+;                      way as mysin.pro (see mpfit tutorial)
+;          start - initial guesses for parameter fits. Needs to be defined with user_func.
+;                   Really just used for initialisation - can edit during fitting process. 
 ;
 ;                      
 ;
 ;OUTPUTS: out - updated structure with fit details added in thread_fits.fit_result
-;               - details of sinusoidal fit to waves, errors are 1-sigma errors
-;               fit_result[0]=constant
-;               fit_result[1]=amplitude
-;               fit_result[2]=period
-;               fit_result[3]=phase
-;               fit_result[4]=linear coefficient
-;               fit_result[5]=error on constant
-;               fit_result[6]=error on amplitude
-;               fit_result[7]=error on period
-;               fit_result[8]=error on phase
-;               fit_result[9]=error on linear coef
-;               fit_result[10]=chi^2 for fit
-;               fit_result[11]=start time from start of time-distance diagram
-;               fit_result[12]=end time
-;               fit_result[13]=pre-fitting used; (1)-non (2,3....)-
+;               - details of n-parameter model fit to waves, errors are 1-sigma errors
+;               fit_result[0:n-1] - parameters
+;               fit_result[n:2n-1] - formal 1 sigma errors on parameters
+;               fit_result[2n]=chi^2 for fit
+;               fit_result[2n+1]=start time from start of time-distance diagram
+;               fit_result[2n+2]=end time
+;               fit_result[2n+3]=pre-fitting used; (1)-non (2,3....)-
 ;               polynomial degree
-;               fit_result[14]=damping term (if /damped used)
-;               fit_result[15]=error on damping term
-;	         fit_result[16]=time-dependent period term (if /tdp used)
-;               fit_result[17]=error on time-dependent period term
 ;
 ;
 ;HISTORY: created 10/2012 R Morton
@@ -70,7 +61,12 @@
 ;         R Morton NOV 2014 - super update! Added structure format to remove all the arrays.
 ;                            Also added COMMON variables so re-used values/structures are passed automatically
 ;         R Morton 20 APR 2015 - Started a re-structure ready for widgetising!
+;         R Morton 21/12/2017 Version 2.0 created
+;                             Removed pre-determined models
+;                             Add option for user defined function (user_func)
+;                  27 MAR 2018 - Release as version 2.0 of NUWT
 ;
+;TO DO: Enable parameter info to be passed to mpfit
 
 FUNCTION find_range,indat
     mom=moment(indat)
@@ -89,14 +85,19 @@ FUNCTION plotthreads,t0,t01,j,range,time,position,fit=fit
 END
 
 
-pro moscill,damped=damped,tdp=tdp,fit_flag=fit_flag,total_flag=total_flag,out=out
+pro nuwt_moscill,fit_flag=fit_flag,total_flag=total_flag,out=out,start=start,user_func=user_func,no_fill=no_fill
 
-COMMON located_dat,located,nx,nt
+COMMON located_dat,located
 COMMON threads_dat,threads
+
+sz=size(located.peaks)
+nx=sz(1) & nt=sz(2)
 
 IF n_elements(fit_flag) EQ 0 THEN fit_flag=0
 sz=size(threads)
 n_thread=sz(1)
+
+IF n_elements(user_func) NE 0 THEN par_len=n_elements(start) ELSE par_len=5
 
 ;######################################################################################
 ;
@@ -110,7 +111,7 @@ IF fit_flag EQ 0 THEN BEGIN
     errors=threads.err_pos
     
     ;Create new structure to contain thread details and fit results
-    newstruct={pos:fltarr(nt), err:fltarr(nt), fit_result:fltarr(18)}
+    newstruct={pos:fltarr(nt), err:fltarr(nt), fit_result:fltarr(2*par_len+4)}
     threads_fit=replicate(newstruct,n_thread)
     struct_assign,threads,threads_fit
 
@@ -127,7 +128,8 @@ ENDIF ELSE BEGIN
     
        ;Create new structure to contain thread details and fit results
        newstruct={pos:fltarr(nt), err_pos:fltarr(nt), inten:fltarr(nt), err_inten:fltarr(nt), $
-                  wid:fltarr(nt), err_wid:fltarr(nt), fit_result_pos:fltarr(18), fit_result_inten:fltarr(18), fit_result_wid:fltarr(18) }
+                  wid:fltarr(nt), err_wid:fltarr(nt), fit_result_pos:fltarr(2*par_len+4), $ 
+                  fit_result_inten:fltarr(2*par_len+4), fit_result_wid:fltarr(2*par_len+4) }
        threads_fit_fg=replicate(newstruct,n_thread)
        struct_assign,threads,threads_fit_fg
     ENDIF
@@ -143,7 +145,7 @@ ENDIF ELSE BEGIN
     
 ENDELSE
 
-temp_var=fltarr(18)
+temp_var=fltarr(2*par_len+4)
 time=findgen(nt)
 
 ;######################################################################################
@@ -157,31 +159,27 @@ print,'###########################################'
 print,'Doing thread '+strtrim(j,2)+' of '+strtrim(n_thread-1,2)
 print,'###########################################'
 
-   
-  ;THE FOLLOWING TWO IF STATMENTS HAVE BEEN MOVED TO FOLLOW_THREAD.PRO
-   ;skips enteries with less than 2 positive values
- ;  IF (n_elements(where(position[*,j] gt 0.))) GT 2. THEN BEGIN
+    
+    IF NOT keyword_set(no_fill) THEN BEGIN
+       ;if value missing set to same as last pixel and set
+       zer=where(position[*,j] EQ 0.)
+       IF zer[0] NE -1 THEN BEGIN
+          FOR ii=0,n_elements(zer)-1 DO BEGIN
+              position[zer[ii],j]=position[zer[ii]-1,j]
+              errors[zer[ii],j]=1.
+          ENDFOR
+       ENDIF
 
-   ;skips enteries where half the data points are set to zero, i.e. no
-   ;value was obtained at fitting stage.
- ;  IF (n_elements(where(position[*,j] EQ 0.))) LT 0.5*(n_elements(where(position[*,j] GE 0.))) THEN BEGIN
-
-     ;if value missing set to same as last pixel and set
-     zer=where(position[*,j] EQ 0.)
-     IF zer[0] NE -1 THEN BEGIN
-        FOR ii=0,n_elements(zer)-1 DO BEGIN
-            position[zer[ii],j]=position[zer[ii]-1,j]
-            errors[zer[ii],j]=1.
-        ENDFOR
-     ENDIF
+    ENDIF
 
      ;Locate the start and end of thread
      in=where(position[*,j] ne -1.,count)
-     chac=n_elements(in)
-     t=in[0] & t1=in[chac-1]
+     t=in[0] & t1=in[-1]
+
+     fitvalues=where(position[*,j] ne -1 and position[*,j] ne 0.)
 
 
-     range=find_range(reform(position[t:t1,j]))
+     range=find_range(reform(position[fitvalues,j]))
      res=plotthreads(t,t1,j,range,time,reform(position[*,j]))
      ;plot,time(t:t1),reform(position[t:t1,j]),yst=1,xst=1,yrange=[range[0],range[1]]
      
@@ -200,14 +198,14 @@ print,'###########################################'
          theend=''
          theend='n'
          talk='new'
-         
+         fitvalues=where(dummyposition ne -1 and dummyposition ne 0.)
          
          ;while loop used to repeat polynomial fitting
          WHILE (theend EQ 'n') DO BEGIN
             
-            range=find_range(dummyposition[tdum:t1dum])
+            range=find_range(dummyposition[fitvalues])
             ;plot,time(t:t1),dummyposition[tdum:t1dum],yst=1,xst=1,yrange=[range[0],range[1]]
-	    res=plotthreads(tdum,t1dum,j,range,time,dummyposition)
+	          res=plotthreads(tdum,t1dum,j,range,time,dummyposition)
 
             ;++++++++++++++++++++++++++++++++++++++++++++++
             ;'Does the length of the thread need changing?' loop
@@ -220,9 +218,11 @@ print,'###########################################'
                   READ,t1dum,PROMPT='Enter t1 value: '
                ENDIF
                
-               range=find_range(dummyposition[tdum:t1dum])
+               fitvalues=fitvalues[where(fitvalues ge tdum and fitvalues le t1dum)]
+
+               range=find_range(dummyposition[fitvalues])
               ; plot,time(tdum:t1dum),dummyposition(tdum:t1dum),yst=1,xst=1,yrange=[range[0],range[1]]
-	       res=plotthreads(tdum,t1dum,j,range,time,dummyposition)
+	             res=plotthreads(tdum,t1dum,j,range,time,dummyposition)
             ENDIF
             ;++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -243,10 +243,10 @@ print,'###########################################'
                   theend='y'
                ENDIF ELSE BEGIN
 
-                 res=poly_fit(findgen(t1dum-tdum+1),dummyposition[tdum:t1dum],talk3,$
-                 measure_errors=dummyerrors[tdum:t1dum],yfit=fit,yband=yband,chisq=chisq)
+                 res=poly_fit(fitvalues,dummyposition[fitvalues],talk3,$
+                 measure_errors=dummyerrors[fitvalues],yfit=fit,yband=yband,chisq=chisq)
                 
-                 range=find_range(dummyposition[tdum:t1dum]-fit)
+                 range=find_range(dummyposition[fitvalues]-fit)
                  ;plot,time(tdum:t1dum),dummyposition[tdum:t1dum]-fit,yrange=[range[0],range[1]]
                  res=plotthreads(tdum,t1dum,j,range,time,dummyposition,fit=fit)
                  print,'Chi^2 of fit ',chisq
@@ -254,8 +254,8 @@ print,'###########################################'
                  READ,theend , PROMPT='Is the fit good? y/n '
 
                  IF theend EQ 'y' THEN BEGIN
-                    dummyposition[tdum:t1dum]=dummyposition[tdum:t1dum]-fit
-                    dummyerrors[tdum:t1dum]=sqrt(dummyerrors[tdum:t1dum]^2+yband^2)
+                    dummyposition[fitvalues]=dummyposition[fitvalues]-fit
+                    dummyerrors[fitvalues]=sqrt(dummyerrors[fitvalues]^2+yband^2)
                  ENDIF
 
               ENDELSE
@@ -270,53 +270,47 @@ print,'###########################################'
       ;non-linear fit to thread
       ;perror is 1-sigma on parameters
       ;bestnorm is summed squared residuals (chi^2)
-      start=[dummyposition[tdum],1.,20.,0.5,1.]
-      print,'Initial variables:',' Constant='+strtrim(start[0],2)+' Amplitude='+strtrim(start[1],2)+$
-            ' Period='+strtrim(start[2],2)+' Phase='+strtrim(start[3],2)+' Linear='+strtrim(start[4],2)
-      st=''
-      READ,st,PROMPT='Change initial variables? y/n '
-
-      IF st EQ 'y' THEN BEGIN
-         new1=start[0]          ;READ,new1,PROMPT='Enter constant: '
-         READ,new2,PROMPT='Enter amplitude: '
-         READ,new3,PROMPT='Enter period: '
-         new4=start[3]          ;READ,new4,PROMPT='Enter phase: '
-         new5=start[4]          ;READ,new5,PROMPT='Enter linear: '
-         start=[new1,new2,new3,new4,new5]
-      ENDIF
       
-      xplot=findgen(t1dum-tdum+1) ;Set length for fitting/plot 
-  
-      IF keyword_set(damped) THEN BEGIN
-         IF keyword_set(tdp) THEN BEGIN
-            start2=fltarr(7)
-            start2[0:4]=start
-            dmp=1d          
-            READ,dmp,PROMPT='Enter damping term: '
-            start2[5]=dmp
-            tdp2=1d          
-            READ,tdp2,PROMPT='Enter time-dependent term: '
-            start2[6]=tdp2
-       
-             res=mpfitfun('mydampedsin_tdp',xplot,dummyposition[tdum:t1dum],$
-                   dummyerrors[tdum:t1dum],start2,perror=perror,bestnorm=bestnorm,/quiet)
-         
-         ENDIF ELSE BEGIN
-           start2=fltarr(6)
-           start2[0:4]=start
-           dmp=1d          
-           READ,dmp,PROMPT='Enter damping term: '
-           start2[5]=dmp
+      ;Default fitting - a sinusoid
+      IF n_elements(user_func) EQ 0 THEN BEGIN
+          start=[dummyposition[tdum],1.,20.,0.5,1.]
+          print,'Initial variables:',' Constant='+strtrim(start[0],2)+' Amplitude='+strtrim(start[1],2)+$
+              ' Period='+strtrim(start[2],2)+' Phase='+strtrim(start[3],2)+' Linear='+strtrim(start[4],2)
+          st=''
+          READ,st,PROMPT='Change initial variables? y/n '
 
-           res=mpfitfun('mydampedsin',xplot,dummyposition[tdum:t1dum],$
-                   dummyerrors[tdum:t1dum],start2,perror=perror,bestnorm=bestnorm,/quiet)
-
-          ENDELSE
+          IF st EQ 'y' THEN BEGIN
+            new1=start[0]          ;READ,new1,PROMPT='Enter constant: '
+            READ,new2,PROMPT='Enter amplitude: '
+            READ,new3,PROMPT='Enter period: '
+            new4=start[3]          ;READ,new4,PROMPT='Enter phase: '
+            new5=start[4]          ;READ,new5,PROMPT='Enter linear: '
+            start=[new1,new2,new3,new4,new5]
+          ENDIF
+        
+          xplot=time[fitvalues] ;Set length for fitting/plot 
+    
+          res=mpfitfun('mysin',xplot,dummyposition[fitvalues],$
+                     dummyerrors[fitvalues],start,perror=perror,bestnorm=bestnorm,/quiet)
 
       ENDIF ELSE BEGIN
-         
-         res=mpfitfun('mysin',xplot,dummyposition[tdum:t1dum],$
-                   dummyerrors[tdum:t1dum],start,perror=perror,bestnorm=bestnorm,/quiet)
+          ;For use defined fitting function
+          start[0]=dummyposition[tdum]
+          print,'Initial variables:', start
+          st=''
+          READ,st,PROMPT='Change initial variables? y/n '
+
+          IF st EQ 'y' THEN BEGIN
+            new=fltarr(par_len)          
+            READ,new,PROMPT='Enter '+strtrim(par_len,2)+' new start parameters (comma separated): '
+            start=new
+          ENDIF
+        
+          xplot=time[fitvalues];Set length for fitting/plot 
+    
+          res=mpfitfun(user_func,xplot,dummyposition[fitvalues],$
+                     dummyerrors[fitvalues],start,perror=perror,bestnorm=bestnorm,/quiet)
+
       ENDELSE     
 
       print,'%'
@@ -325,19 +319,16 @@ print,'###########################################'
       print,'Error on fits',perror
       print,'Chi^2', bestnorm
 
-      oploterr,time(tdum:t1dum),dummyposition[tdum:t1dum],dummyerrors[tdum:t1dum]
+      oploterr,time[fitvalues],dummyposition[fitvalues],dummyerrors[fitvalues],psym=1
       
+      IF n_elements(user_func) EQ 0 THEN BEGIN 
+        pl_func=mysin(xplot,res)
+        oplot,time[fitvalues],pl_func,linestyle=2
+      ENDIF ELSE BEGIN
+        pl_func=call_function(user_func,xplot,res)
+        oplot,time[fitvalues],pl_func,linestyle=2
+      ENDELSE
       
-      IF keyword_set(damped) THEN BEGIN
-         IF keyword_set(tdp) THEN BEGIN
-            oplot,time(tdum:t1dum),res[0]+res[1]*sin(2.*!pi*xplot/(res[2]*(1+res[6]*xplot))-res[3])*exp(-res[5]*xplot)+xplot*res[4],linestyle=2
-
-         ENDIF ELSE BEGIN
-            oplot,time(tdum:t1dum),res[0]+res[1]*sin(2.*!pi*xplot/res[2]-res[3])*exp(-res[5]*xplot)+xplot*res[4],linestyle=2
-         ENDELSE
-      ENDIF ELSE BEGIN 
-         oplot,time(tdum:t1dum),res[0]+res[1]*sin(2.*!pi*xplot/res[2]-res[3])+xplot*res[4],linestyle=2
-      ENDELSE 
 
       READ,endfit,PROMPT='Repeat fitting procedure? - y/n ' 
      ENDWHILE
@@ -348,32 +339,14 @@ print,'###########################################'
 
      IF sav EQ 'y' THEN BEGIN
 
-     	temp_var[0]=res[0] ;constant
-     	temp_var[1]=res[1] ;amplitude
-     	temp_var[2]=res[2] ;period
-     	temp_var[3]=res[3] ;phase
-     	temp_var[4]=res[4] ; out[4,j]=res[4] ;linear coefficient
-     	temp_var[5]=perror[0]  ;constant error
-     	temp_var[6]=perror[1]  ;amplitude error
-     	temp_var[7]=perror[2]  ;period error
-     	temp_var[8]=perror[3]  ;phase error
-     	temp_var[9]=perror[4]  ;linear error
-     	temp_var[10]=bestnorm  ; chi^2
-     	temp_var[11]=tdum      ;Start time
-     	temp_var[12]=t1dum     ;end time
-     	temp_var[13]=talk3     ; degree of polynomial fit used
+     	temp_var[0:par_len-1]=res
+      temp_var[par_len:2*par_len-1]=perror
+     	temp_var[2*par_len]=bestnorm  ; chi^2
+     	temp_var[2*par_len+1]=tdum      ;Start time
+     	temp_var[2*par_len+2]=t1dum     ;end time
+     	temp_var[2*par_len+3]=talk3     ; degree of polynomial fit used
      
-     	IF keyword_set(damped) THEN BEGIN
-        	temp_var[14]=res[5]    ;damping time
-        	temp_var[15]=perror[5] ;damping time error
-        
-      		IF keyword_set(tdp) THEN BEGIN
-             		temp_var[16]=res[6] ;value of time-dependence
-             		temp_var[17]=perror[6] ;error on time-dependence
-          	ENDIF
-     	ENDIF
-
-
+     	
      	;######################################################################################
      	;
      	;SAVING OUTPUT STRUCTURES FOR DIFFERENT SCENARIOS
