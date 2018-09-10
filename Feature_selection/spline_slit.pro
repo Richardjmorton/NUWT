@@ -428,7 +428,7 @@ ENDFOR
 
 slits=transpose(interp_arr,[1,2,0])
 
-stop
+
 END
 
 
