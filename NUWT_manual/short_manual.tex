@@ -61,17 +61,40 @@
 \newpage
 \underline{\textbf{History}}\\
 
-Version 1 - 03/2016 - Basic operating information 
-\newpage
-\section{Introduction}
+Version 1 - 03/2016 - Basic operating information\\
+Version 2 - 01/2019 - Updated instructions for modifications.
 
+\vspace{2cm}
 
 If you spot any mistakes or suggestions please email \textit{richard.morton@northumbria.ac.uk} .
+
+\newpage
+\section{Introduction}
+The following describes how to run and operate software primarily developed from the measurement and analysis of kink oscillations in time-distance diagrams from solar data. However, there is scope for measurements of other features in time-distance diagrams. 
+
+\medskip
+The software was developed in part with the support of the Science and Technology Facilities Council (ST/L006243/1; ST/L006308/1).
+
+
 
 \section{Selecting data sets}
 The automated wave measurement tools are designed to analyse features in time-distance (TD) diagrams.
 
-There are three tools available to create time-distance diagrams, \textit{diag\_slit.pro}, \textit{track\_rout.pro} and \textit{spline\_slit.pro}. 
+There are two tools available to create time-distance diagrams, \textit{diag\_slit.pro} and \textit{spline\_slit.pro}. The operation of \textit{spline\_slit.pro} is given in a separate manual.
+
+ %#############################################################################
+%#############################################################################
+%\begin{figure*}[!tph]
+\begin{wrapfigure}{r}{0.5\textwidth}
+\centering
+\includegraphics[scale=0.6, clip=true, viewport=4.5cm 0.cm 20.cm 14.7cm]{slit_example2.png}  
+\caption{Hydrogen $\alpha$ line centre data set. The units are in pixels and the white slit shows the location of the slit from which the data for the time-distance diagram is extracted using \textit{diag\_slit}. The slit is placed across a large-scale feature composed of many fine-scale dark fibrils.
+}\label{fig:slit_pick}
+\vspace{-10pt}
+\end{wrapfigure}
+%\end{figure*}
+%#############################################################################
+%#############################################################################
 
 \subsection{diag\_slit}
 The \textit{diag\_slit.pro} routine is a simple point and click routine that lets you pick two data points, calculates a straight line between the
@@ -84,26 +107,16 @@ A typical calling procedure for \textit{diag\_slit} is:\\
  
 where \textit{slit} is the outputted time-distance diagram. In Figure~\ref{fig:slit_pick} a typical example of data selection is given and the output shown is shown in Figure~\ref{fig:slit_pick2}.
 
- %#############################################################################
-%#############################################################################
-%\begin{figure*}[!tph]
-\begin{wrapfigure}{r}{0.5\textwidth}
-\centering
-\includegraphics[scale=0.6, clip=true, viewport=4.5cm 0.cm 20.cm 14.7cm]{slit_example2.png}  
-\caption{Hydrogen $\alpha$ line centre data set. The units are in pixels and the white slit shows the location of the slit from which the data for the time-distance diagram is extracted using \textit{diag\_slit}. The slit is placed across a large-scale feature composed of many fine-scale dark fibrils.
-}\label{fig:slit_pick}
-\end{wrapfigure}
-%\end{figure*}
-%#############################################################################
-%#############################################################################
 
 
 
-\subsection{track\_rout}
 
 
-\subsection{spline\_slit}
-This routine probably the better of the three, but is slightly more difficult to use. A full description of the routine is given in an alternate document.
+
+
+\section{Wave tracking}
+The basic premise behind the wave tracking routine is just a simple feature finding routine. The routine identifies peaks in intensity throughout the TD diagram of interest. A peak is defined as the local maximum intensity value in a search box, whose size can be set by the user. The gradient of the slopes either side of the local maximum are used to determine whether the found local maximum is identified as a peak or not. The local maximum is required to have a positive and negative slope on the left and right hand side respectively. The user also has to select the minimum value of the gradient of the slope, i.e., a cut-off value. This value is not the same for different data sets and the user should test different values for the gradient cut-off. A gradient too large selects no points, a gradient cut-off that is too small ends up picking up the noise in the data, as well as the signal. The routine essentially scans through the TD diagram, identifying all peaks that meet the criteria. \textbf{NOTE: only positive peaks are found - so if your interested in features that have lower intensities than the background (e.g., fibrils) you will need to invert the intensities!} (we typically multiply the TD by -1 and add back the maximum image value).
+
 
 
  %#############################################################################
@@ -121,18 +134,10 @@ This routine probably the better of the three, but is slightly more difficult to
 %#############################################################################
 %#############################################################################
 
-
-\section{Wave tracking}
-The basic premise behind the wave tracking routine is just a simple feature finding routine. The routine identifies peaks in intensity throughout the TD diagram of interest. A peak is defined as the local maximum intensity value in a search box, whose size can be set by the user. The gradient of the slopes either side of the local maximum are used to determine whether the found local maximum is identified as a peak or not. The local maximum is required to have a positive and negative slope on the left and right hand side respectively. The user also has to select the minimum value of the gradient of the slope, i.e., a cut-off value. This value is not the same for different data sets and the user should test different values for the gradient cut-off. A gradient too large selects no points, a gradient cut-off that is too small ends up picking up the noise in the data, as well as the signal. The routine essentially scans through the TD diagram, identifying all peaks that meet the criteria. \textbf{NOTE: only positive peaks are found - so if your interested in features that have lower intensities than the background (e.g., fibrils) you will need to invert the intensities!} (It is recommended to multiply the TD by -1).
-
-
-
-
-
 \smallskip
 The routine has two modes for finding the location of the peaks, one more accurate than the other. The first mode just takes the given location of maximum intensity at pixel level accuracy, and are given an error that is $\pm0.5$~pixel. This is a clearly a very coarse method.\\
 
- The second mode is based on the least-squares fitting of a Gaussian function to the peak in intensity, allowing for a sub-pixel estimate of the location of the intensity peak. \\
+ The second mode is based on the least-squares fitting of a Gaussian function to the peak in intensity, allowing for a sub-pixel estimate of the location of the intensity peak. This method inherently assumes that the intensity uncertainties are approximately Normally distributed, which is largely the case for solar data dominated by photon noise. \\
 
 \smallskip
 
@@ -202,12 +207,14 @@ To test the second fitting method, the call is: \\
 
 \textit{IDL\textgreater quick\_plot\_ft,td,/gauss,error=td\_er} \\
 
-Here, the $td\_err$ is the uncertainties on the intensity values in the time-distance diagram. It should be the same dimensions and size as $td$. The uncertainties are used 
-to weight the Gaussian fit. They are required for the code to run as it makes judgements about the goodness of fit of the Gaussian to the peak. If the peak doesn't meet the 
-goodness of fit criteria, then the location of the peak is recorded using the basic properties, cf the first mode.\\
+Here, the $td\_err$ is the uncertainties on the intensity values in the time-distance diagram. This should be calculated by 
+the user using, e.g., the properties of the instrument (sensor efficiency, gain, readout noise etc.). It should be the same 
+dimensions and size as $td$. The uncertainties are used 
+to weight the Gaussian fit. They are required for the code to run as it makes judgements about the goodness-of-fit of the Gaussian to the peak. If the peak doesn't meet the goodness-of-fit criteria, then the location of the peak is recorded using the 
+basic properties, cf the first mode.\\
 
- In Figure~\ref{fig:slit_g} the output window is shown for the Gaussian fitting. The red crosses show the locations where the fit of the Gaussian failed to meet a list of 
- criteria (see Section~). For this example the assumed uncertainties of $0.5\%$ of the intensity value. \textbf{NOTE: careful analysis of data uncertainties is highly 
+ In Figure~\ref{fig:slit_g} the output window is shown for the Gaussian fitting. The red crosses show the locations where the fit of 
+ the Gaussian failed to meet a list of criteria. For this example the assumed uncertainties of $0.5\%$ of the intensity value. \textbf{NOTE: careful analysis of data uncertainties is highly 
  recommended! Otherwise results will not accurately reflect the uncertainties of the peak location.} \\
 
 There are a number of other keywords that lets you play with different parameters.
@@ -226,9 +233,9 @@ There are a number of other keywords that lets you play with different parameter
 %#############################################################################
 
  
-\subsection{\textit{track\_rout}}
+\subsection{\textit{nuwt\_tr}}
 
-The \textit{track\_rout} routine uses the same feature finding as discussed for \textit{quick\_plot\_ft}. 
+The \textit{nuwt\_tr} routine uses the same feature finding as discussed for \textit{quick\_plot\_ft}. 
 Once the peaks have been identified, an another sub-routine then `stitches' together the peaks by 
 crawling through the data. The routine starts at a peak and searches forward in time for the next `local' 
 peak. The search box is 5 pixels in space by 4 in time. If no pixel is found in the box, the thread is 
@@ -236,11 +243,11 @@ considered to be finished. The means small jumps in time are allowed for. \\
 
 The basic calls for the routine are: \\
 
-\textit{IDL\textgreater track\_rout,data=td} \\
+\textit{IDL\textgreater nuwt\_tr,data=td} \\
 
 or\\
 
-\textit{IDL\textgreater track\_rout,data=td,/gauss,error=td\_er} \\
+\textit{IDL\textgreater nuwt\_tr,data=td,/gauss,error=td\_er} \\
 
  
 
@@ -252,6 +259,7 @@ screen that shows the TD and the found peaks - there is no indication at this st
 fittings failed for the Gaussian fit. Note, \textbf{all} peaks found are plotted - this image does not reflect 
 the threads found.
 
+\medskip
 Once the fitting and stitching is complete, the user will be prompted as to whether they want to fit the 
 threads. If \textit{y}, then the it takes you to an interactive fitting process, the details of which are given 
 in the next sub-sub-section. Answering \textit{n} skips the fitting.
@@ -282,25 +290,23 @@ fitting section for more details).
 
 \subsection{Wave fitting}
 
-At present, the wave fitting part of the routine is quite rigid. The user has access to three functional 
-forms:\\
+We have updated the wave fitting part of the routine to make it more flexible. Users can now write their own function and pass this to \textit{nuwt\_tr} via the \textit{user\_func} and \textit{start} keywords. We have provided the original functions for fitting:\\
  
 \begin{eqnarray}
 f(t)=A_0+A_1\sin\left( \frac{2.\pi t}{A_2}-A_3\right)+tA_4,\label{eq:sinpl}\\
-f(t)=A_0+A_1\sin\left( \frac{2.\pi t}{A_2}-A_3\right)\exp(-A_5t)+tA_4,\\
+f(t)=A_0+A_1\sin\left( \frac{2.\pi t}{A_2}-A_3\right)\exp(-A_5t)+tA_4,\label{eq:sindp}\\
 f(t)=A_0+A_1\sin\left( \frac{2.\pi t}{A_2(1+A_6t)}-A_3\right)\exp(-A_5t)+tA_4.\label{eq:sintdp}
 \end{eqnarray}
 
-The function Eq.~\ref{eq:sinpl} is the default fitting option, the others are selected by keywords when starting the routine via keywords, i.e.,\\
+The function Eq.~\ref{eq:sinpl} is the default fitting option, the others can now be selected by the above keywords. To use a non-default function you will need to provide the name of the function as a string and an array of estimates for the parameters. The array is just used for initialisation purposes and values can be altered later. The call then looks like (for model 
+in Eq.~\ref{eq:sindp})
 
-\textit{IDL\textgreater track\_rout,data=td,\ damped} \\
+\medskip
 
-or\\
+\textit{IDL\textgreater nuwt\_tr,data=td, user\_func='damped', $start=[0.,2.,100.,0.,0.01,1.]$} \\
 
-\textit{IDL\textgreater track\_rout,data=td,\ tdp} \\
 
-However, this means that which ever function is chosen at the start of the routine is used for fitting all threads found! (This is obviously restrictive and we are looking to
-improve this aspect).\\
+Note, the function chosen at the start of the routine is used for fitting all threads found! (This is obviously restrictive and we are looking to improve this aspect).\\
 
 Once the fitting section of the routine has been entered, the routine performs a gap-filling. Any threads that have zero's in it's entries are filled. The default option for the 
 filling is to give the blank entry the same value as found for the previous entry in the array and assigning it an error of $\pm1$ pixel. The large value of the error than 
@@ -351,26 +357,14 @@ The fit is overplotted in the window. Should you be unhappy with the fit, select
 repeated as many times as desired. Selecting \textit{n} then ends the fitting of the current thread. You are then prompted whether to save the results of the fitting. Selecting 
 \textit{y} will record the fit parameters in \textit{threads\_fit.fit\_result},  selecting \textit{n} will not record the values. The routine then moves onto the next thread.\\
 
-As mentioned, the results of the fit are stored in \textit{threads\_fit.fit\_result}, with the following positions:\\
+As mentioned, the results of the fit are stored in \textit{threads\_fit.fit\_result}. For an $n$ parameter fit, array entries correspond to:\\
 
-\textit{fit\_result[0]=constant\\
-fit\_result[1]=amplitude\\
-fit\_result[2]=period\\
-fit\_result[3]=phase\\
-fit\_result[4]=linear coefficient\\
-fit\_result[5]=error on constant\\
-fit\_result[6]=error on amplitude\\
-fit\_result[7]=error on period\\
-fit\_result[8]=error on phase\\
-fit\_result[9]=error on linear coef\\
-fit\_result[10]=chi\^{}2 for fit\\
-fit\_result[11]=start time from start of time-distance diagram\\
-fit\_result[12]=end time\\
-fit\_result[13]=pre-fitting used; (1)-non (2,3....)- polynomial degree\\
-fit\_result[14]=damping term (if /damped used)\\
-fit\_result[15]=error on damping term\\
-fit\_result[16]=time-dependent period term (if /tdp used)\\
-fit\_result[17]=error on time-dependent period term\\
+\textit{fit\_result[0:n-1] - parameters\\
+fit\_result[n:2n-1] - formal 1 sigma errors on parameters\\
+fit\_result[2n]=chi\^{}2 for fit\\
+fit\_result[2n+1]=start time from start of time-distance diagram\\
+fit\_result[2n+2]=end time\\
+fit\_result[2n+3]=pre-fitting used; (1)-non (2,3....)- polynomial degree\\
 }
 
 
@@ -382,13 +376,7 @@ the list. Further, if anybody would like to work on any of these issues please f
 \item Update $\chi^2$ cut-off for Gaussian fitting of cross-section - At present, reduced $\chi^2$ is used and set to a hard value of 5. This should be either set by a critical 
 value for rejection. However, reduced $\chi^2$ is not an appropriate measure for goodness of fit for non-linear functions (cite), so implementing a Kolmogorov-Smirnov test 
 may provide greater confidence.
-\item Make the fitting section more flexible - option for user to input own function for each fit.
-\item Make a GUI version!
-\item Fully automated routine - removing the hand fitting section and replacing with something. Will likely form a separate routine to this one.
-\item Add consistent full Gaussian fit to cross-sections, returning intensity and structure width. This routine is almost complete but there are some issues regarding the 
-rejected fits and how to provide a consistent value for intensity.
-\item Full documentation - the future plan for the documentation is to include a discussion of the theory of least-squares fitting, this is being done by Krishna and should be 
-available at the end of 2017.
+\item Improve flexibility of fitting routine further.
 \end{itemize}
 
 
